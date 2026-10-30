@@ -20,6 +20,7 @@
 import type { ComponentType } from 'react';
 
 // <custom:intent-imports>
+import { IconCalendarPlus, IconUserPlus, IconCircleCheck } from '@tabler/icons-react';
 // </custom:intent-imports>
 
 export interface IntentLink {
@@ -42,6 +43,9 @@ export interface IntentLink {
 
 export const INTENTS: IntentLink[] = [
   // <custom:intents>
+  { path: '/intents/umfrage-anlegen', label: { de: 'Umfrage mit Terminen anlegen', en: 'Create poll with dates' }, icon: IconCalendarPlus, description: 'Umfrage samt mehreren Terminvorschlägen in einem Zug anlegen' },
+  { path: '/intents/teilnehmer-einladen', label: { de: 'Teilnehmer einladen', en: 'Invite participants' }, icon: IconUserPlus, description: 'Offene Umfrage wählen und Teilnehmer mit persönlichem Token erfassen' },
+  { path: '/intents/umfrage-abschliessen', label: { de: 'Umfrage abschließen', en: 'Close poll' }, icon: IconCircleCheck, description: 'Antworten je Termin ansehen, besten Termin wählen und Umfrage abschließen' },
   // </custom:intents>
 ];
 
@@ -52,7 +56,7 @@ export const INTENTS: IntentLink[] = [
  * purpose — a scaffold update resets it to false (self-healing if Phase 2
  * never ran).
  */
-export const INTENTS_PENDING = true;
+export const INTENTS_PENDING = false;
 
 /**
  * When the Phase-1 bundle was deployed (ISO, set by the service together with
