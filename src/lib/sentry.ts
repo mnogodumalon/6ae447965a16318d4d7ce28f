@@ -31,7 +31,7 @@ if (DSN) {
     // browser notice about a callback that changed layout again in the same
     // frame; the observer delivers next frame. ErrorBus filters it for the
     // toast channel, this is the report channel (issue 30.09.2026, < 800 px).
-    ignoreErrors: ['Transition was skipped', 'ResizeObserver loop'],
+    ignoreErrors: ['Transition was skipped', 'Transition was aborted because of invalid state','ResizeObserver loop'],
   });
   if (APPGROUP_ID) {
     Sentry.setTag('appgroup_id', APPGROUP_ID);

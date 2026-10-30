@@ -197,7 +197,10 @@ export function ErrorBusProvider({ children }: { children: ReactNode }) {
       // Cancelled fetches reject with AbortError too — same verdict.
       if (
         (reason instanceof DOMException && reason.name === 'AbortError') ||
-        (reason instanceof Error && reason.message.includes('Transition was skipped'))
+        (reason instanceof Error && (
+          reason.message.includes('Transition was skipped') ||
+          reason.message.includes('Transition was aborted because of invalid state')
+        ))
       ) return;
       const message =
         reason instanceof Error ? reason.message :
