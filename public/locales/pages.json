@@ -1,0 +1,31 @@
+{
+  "pages": {
+    "en": {
+      "Abgeschlossen mit gewähltem Termin": "Closed with selected date",
+      "Ablauf „Umfrage abschließen“ geöffnet": "\"Close poll\" flow opened",
+      "Alle Eingeladenen haben geantwortet.": "All invitees have responded.",
+      "Alle Teilnehmer haben bei {0} geantwortet.": "All participants have responded for {0}.",
+      "Antwort ausstehend": "Response pending",
+      "Antworten je Terminvorschlag": "Responses per proposed date",
+      "Antwortquote offener Umfragen": "Response rate of open polls",
+      "Frist {0}": "Deadline {0}",
+      "Im Ablauf „Umfrage abschließen“ bestätigen": "Confirm in the \"Close poll\" flow",
+      "Ja {0} · Vielleicht {1} · Nein {2}": "Yes {0} · Maybe {1} · No {2}",
+      "Keine offene Umfrage — zuletzt abgeschlossen: {0}.": "No open poll — last closed: {0}.",
+      "Lege deine erste Terminumfrage an.": "Create your first scheduling poll.",
+      "Neue Umfrage": "New poll",
+      "Noch keine Antwort": "No response yet",
+      "Noch keine Antwort von {0}.": "No response from {0} yet.",
+      "Noch keine Teilnehmer": "No participants yet",
+      "Noch keine Umfrage mit gewähltem Termin abgeschlossen.": "No poll closed with a selected date yet.",
+      "Status ändern: Umfrage öffnen und bearbeiten": "Change status: open and edit poll",
+      "Teilnehmer hinzufügen": "Add participant",
+      "Terminvorschlag": "Proposed date",
+      "Umfrage abschließen": "Close poll",
+      "{0}/{1} geantwortet": "{0}/{1} responded",
+      "{0}: Frist abgelaufen, wartet auf deine Terminwahl.": "{0}: Deadline passed, waiting for your date selection.",
+      "— Antwortfrist abgelaufen, der Termin ist noch nicht gewählt.": "— Response deadline passed, date not yet selected."
+    }
+  },
+  "v": 1
+}

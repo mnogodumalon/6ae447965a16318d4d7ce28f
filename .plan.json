@@ -1,0 +1,239 @@
+{
+  "version": 1,
+  "language": "de",
+  "understanding": {
+    "summary": "Die Anwendung organisiert Terminabstimmungen: Organisatoren legen eine Umfrage mit mehreren Terminvorschlägen an, laden Teilnehmer ein und sehen, wer wann Ja, Vielleicht oder Nein geantwortet hat. Am Ende wird ein Termin gewählt und die Umfrage abgeschlossen. Teilnehmer antworten ohne Login über ihren persönlichen Link.",
+    "roles": [
+      "Organisator",
+      "Teilnehmer (ohne Login, über persönlichen Link)"
+    ],
+    "main_tasks": [
+      "Umfrage mit Terminvorschlägen anlegen",
+      "Teilnehmer einladen und persönliches Token vergeben",
+      "Antworten der Teilnehmer sammeln",
+      "Auswertung ansehen und besten Termin wählen",
+      "Umfrage abschließen und Ergebnis mitteilen"
+    ],
+    "platform_roles": [
+      {
+        "persona": "Organisator",
+        "role": "datenverarbeitung",
+        "apps": [
+          "umfragen",
+          "terminvorschlaege",
+          "teilnehmer",
+          "antworten"
+        ]
+      }
+    ]
+  },
+  "flows": [
+    {
+      "slug": "umfrage-anlegen",
+      "label": {
+        "de": "Umfrage mit Terminen anlegen",
+        "en": "Create poll with dates"
+      },
+      "description": "Der Organisator legt eine Umfrage samt mehreren Terminvorschlägen in einem Zug an.",
+      "priority": "must",
+      "writes": [
+        {
+          "entity": "umfragen",
+          "op": "create",
+          "when": "always",
+          "fields": {
+            "titel": "user",
+            "beschreibung": "user",
+            "ort": "user",
+            "dauer_min": "user",
+            "frist": "user",
+            "orga_vorname": "user",
+            "orga_nachname": "user",
+            "orga_mail": "user",
+            "status": "fixed:offen"
+          },
+          "needs": {}
+        },
+        {
+          "entity": "terminvorschlaege",
+          "op": "create",
+          "when": "always",
+          "fields": {
+            "umfrage": "picked",
+            "start": "user"
+          },
+          "needs": {}
+        }
+      ],
+      "required": [],
+      "brief": "# Flow `umfrage-anlegen` — Umfrage mit Terminen anlegen\nDer Organisator legt eine Umfrage samt mehreren Terminvorschlägen in einem Zug an.\n\n## Your hook — import it, never rebuild what it owns\n`import { useUmfrageAnlegenFlow } from '@/lib/journey/flows/UmfrageAnlegen';` — generated from the Schreibliste below. It OWNS the form(s), one record search per picked field (columns and filter from the plan) and the submit plan with every fixed and derived value. You compose: `flow.forms.<entity>` for <Bound>/<Field>, `{...flow.picks.<field>.select} {...flow.pick('<field>')}` (or `flow.pickMany` for a multi pick) for <EntitySelectStep>, `flow.validateStep(n)` in StepNav.onNext, `flow.submit` + `flow.formList` for SummaryStep/SuccessStep, `flow.reset()`; what the hook does not own reads through its door `flow.port` — availability `useOccupancy(flow.port, '<entity>', { resource })`, a count `useRecordCount(flow.port, …)` — never import servicePort next to the hook. Options: `steps` (field → step), `items` (how a hit reads, per pick: umfrage), `initial`, `messages`. The hook's docblock in .lane-context.md shows the exact call. Never import servicePort, useStepForm, useJourneySubmit, useRecordSearch or useDashboardData in this page — check-intents refuses a page that uses the hook and any of them.\n\n## Steps (in this order)\n1. Titel, Beschreibung, Ort, Dauer und Antwortfrist eingeben\n2. Organisator-Daten eingeben\n3. Mehrere Terminvorschläge mit Beginn erfassen\n4. Umfrage wird als offen gespeichert\n\n## Schreibliste — the ONLY writes this flow makes (the gate compares your plan steps with this list)\n- creates `umfragen`:\n    - `titel`: the user enters it (bind it through the layer: form.field/…)\n    - `beschreibung`: the user enters it (bind it through the layer: form.field/…)\n    - `ort`: the user enters it (bind it through the layer: form.field/…)\n    - `dauer_min`: the user enters it (bind it through the layer: form.field/…)\n    - `frist`: the user enters it (bind it through the layer: form.field/…)\n    - `orga_vorname`: the user enters it (bind it through the layer: form.field/…)\n    - `orga_nachname`: the user enters it (bind it through the layer: form.field/…)\n    - `orga_mail`: the user enters it (bind it through the layer: form.field/…)\n    - `status`: fixed value `offen` — set it in the plan step's values, never ask\n- creates `terminvorschlaege`:\n    - `umfrage`: from the record the user picks in this flow\n    - `start`: the user enters it (bind it through the layer: form.field/…)\n\n## Success page\n- shows: `umfragen.titel`, `terminvorschlaege.start`\n- next flows to offer: `teilnehmer-einladen`\n\n## Never write these — another flow or a tool owns them\n- `teilnehmer.umfrage` (owner: intent `teilnehmer-einladen`)\n- `teilnehmer.vorname` (owner: intent `teilnehmer-einladen`)\n- `teilnehmer.nachname` (owner: intent `teilnehmer-einladen`)\n- `teilnehmer.mail` (owner: intent `teilnehmer-einladen`)\n- `teilnehmer.token` (owner: intent `teilnehmer-einladen`)\n- `umfragen.gewaehlter_termin` (owner: intent `umfrage-abschliessen`)\n- `teilnehmer.geantwortet_am` (owner: tool `antwortzeit-setzen`)\n"
+    },
+    {
+      "slug": "teilnehmer-einladen",
+      "label": {
+        "de": "Teilnehmer einladen",
+        "en": "Invite participants"
+      },
+      "description": "Der Organisator wählt eine offene Umfrage und erfasst mehrere Teilnehmer, jeder mit eigenem Token.",
+      "priority": "must",
+      "writes": [
+        {
+          "entity": "teilnehmer",
+          "op": "create",
+          "when": "always",
+          "fields": {
+            "umfrage": "picked",
+            "vorname": "user",
+            "nachname": "user",
+            "mail": "user",
+            "token": "derived:computed:Zufälliges, nicht erratbares Token aus mindestens 20 Zeichen (z. B. UUID ohne Bindestriche), eindeutig je Teilnehmer"
+          },
+          "needs": {}
+        }
+      ],
+      "required": [],
+      "brief": "# Flow `teilnehmer-einladen` — Teilnehmer einladen\nDer Organisator wählt eine offene Umfrage und erfasst mehrere Teilnehmer, jeder mit eigenem Token.\n\n## Your hook — import it, never rebuild what it owns\n`import { useTeilnehmerEinladenFlow } from '@/lib/journey/flows/TeilnehmerEinladen';` — generated from the Schreibliste below. It OWNS the form(s), one record search per picked field (columns and filter from the plan) and the submit plan with every fixed and derived value. You compose: `flow.forms.<entity>` for <Bound>/<Field>, `{...flow.picks.<field>.select} {...flow.pick('<field>')}` (or `flow.pickMany` for a multi pick) for <EntitySelectStep>, `flow.validateStep(n)` in StepNav.onNext, `flow.submit` + `flow.formList` for SummaryStep/SuccessStep, `flow.reset()`; what the hook does not own reads through its door `flow.port` — availability `useOccupancy(flow.port, '<entity>', { resource })`, a count `useRecordCount(flow.port, …)` — never import servicePort next to the hook. Options: `steps` (field → step), `items` (how a hit reads, per pick: umfrage), `initial`, `messages`, and `compute` — REQUIRED, the plan leaves these rules to you: token. The hook's docblock in .lane-context.md shows the exact call. Never import servicePort, useStepForm, useJourneySubmit, useRecordSearch or useDashboardData in this page — check-intents refuses a page that uses the hook and any of them.\n\n## Steps (in this order)\n1. Offene Umfrage wählen\n2. Vorname, Nachname und E-Mail je Teilnehmer erfassen\n3. Persönliches Token wird vergeben und gespeichert\n\n## Schreibliste — the ONLY writes this flow makes (the gate compares your plan steps with this list)\n- creates `teilnehmer`:\n    - `umfrage`: from the record the user picks in this flow\n    - `vorname`: the user enters it (bind it through the layer: form.field/…)\n    - `nachname`: the user enters it (bind it through the layer: form.field/…)\n    - `mail`: the user enters it (bind it through the layer: form.field/…)\n    - `token`: derived (computed)\n\n## Reads\n- `umfragen` columns titel, frist, status\n\n## Checks BEFORE the write (block the submit with the message when they fail)\n- unique (field=`teilnehmer.token`) — message: „Dieses Token ist schon vergeben.“\n\n## Success page\n- shows: `teilnehmer.nachname`, `teilnehmer.token`\n\n## Never write these — another flow or a tool owns them\n- `umfragen.titel` (owner: intent `umfrage-anlegen`)\n- `umfragen.beschreibung` (owner: intent `umfrage-anlegen`)\n- `umfragen.ort` (owner: intent `umfrage-anlegen`)\n- `umfragen.dauer_min` (owner: intent `umfrage-anlegen`)\n- `umfragen.frist` (owner: intent `umfrage-anlegen`)\n- `umfragen.orga_vorname` (owner: intent `umfrage-anlegen`)\n- `umfragen.orga_nachname` (owner: intent `umfrage-anlegen`)\n- `umfragen.orga_mail` (owner: intent `umfrage-anlegen`)\n- `umfragen.status` (owner: intent `umfrage-anlegen`)\n- `terminvorschlaege.umfrage` (owner: intent `umfrage-anlegen`)\n- `terminvorschlaege.start` (owner: intent `umfrage-anlegen`)\n- `umfragen.gewaehlter_termin` (owner: intent `umfrage-abschliessen`)\n- `teilnehmer.geantwortet_am` (owner: tool `antwortzeit-setzen`)\n"
+    },
+    {
+      "slug": "umfrage-abschliessen",
+      "label": {
+        "de": "Umfrage abschließen",
+        "en": "Close poll"
+      },
+      "description": "Der Organisator sieht die Antworten je Termin, wählt den besten Termin und schließt die Umfrage ab.",
+      "priority": "must",
+      "writes": [
+        {
+          "entity": "umfragen",
+          "op": "update",
+          "when": "always",
+          "fields": {
+            "gewaehlter_termin": "picked",
+            "status": "fixed:abgeschlossen"
+          },
+          "needs": {}
+        }
+      ],
+      "required": [],
+      "brief": "# Flow `umfrage-abschliessen` — Umfrage abschließen\nDer Organisator sieht die Antworten je Termin, wählt den besten Termin und schließt die Umfrage ab.\n\n## Your hook — import it, never rebuild what it owns\n`import { useUmfrageAbschliessenFlow } from '@/lib/journey/flows/UmfrageAbschliessen';` — generated from the Schreibliste below. It OWNS the form(s), one record search per picked field (columns and filter from the plan) and the submit plan with every fixed and derived value. You compose: `flow.forms.<entity>` for <Bound>/<Field>, `{...flow.picks.<field>.select} {...flow.pick('<field>')}` (or `flow.pickMany` for a multi pick) for <EntitySelectStep>, `flow.validateStep(n)` in StepNav.onNext, `flow.submit` + `flow.formList` for SummaryStep/SuccessStep, `flow.reset()`; what the hook does not own reads through its door `flow.port` — availability `useOccupancy(flow.port, '<entity>', { resource })`, a count `useRecordCount(flow.port, …)` — never import servicePort next to the hook. Options: `steps` (field → step), `items` (how a hit reads, per pick: gewaehlter_termin), `initial`, `messages`. The hook's docblock in .lane-context.md shows the exact call. This flow CHANGES a record of `umfragen`: `{...flow.picks.umfragen.select} {...flow.pick('umfragen')}` picks it, the hook prefills the form with its current values and updates THAT record — never a create step, never a list from useDashboardData. Never import servicePort, useStepForm, useJourneySubmit, useRecordSearch or useDashboardData in this page — check-intents refuses a page that uses the hook and any of them.\n\n## Steps (in this order)\n1. Offene Umfrage wählen\n2. Antworten je Terminvorschlag ansehen\n3. Gewählten Termin auswählen\n4. Status auf abgeschlossen setzen\n\n## Schreibliste — the ONLY writes this flow makes (the gate compares your plan steps with this list)\n- updates `umfragen`:\n    - `gewaehlter_termin`: from the record the user picks in this flow\n    - `status`: fixed value `abgeschlossen` — set it in the plan step's values, never ask\n\n## Reads\n- `umfragen` columns titel, frist, status\n- `terminvorschlaege` columns start, umfrage\n- `antworten` columns wert, teilnehmer, terminvorschlag\n\n## Checks BEFORE the write (block the submit with the message when they fail)\n- custom (rule=`terminvorschlaege.umfrage muss der gewählten Umfrage entsprechen`) — message: „Der Termin gehört nicht zu dieser Umfrage.“\n\n## Success page\n- shows: `umfragen.gewaehlter_termin`, `umfragen.status`\n\n## Never write these — another flow or a tool owns them\n- `umfragen.titel` (owner: intent `umfrage-anlegen`)\n- `umfragen.beschreibung` (owner: intent `umfrage-anlegen`)\n- `umfragen.ort` (owner: intent `umfrage-anlegen`)\n- `umfragen.dauer_min` (owner: intent `umfrage-anlegen`)\n- `umfragen.frist` (owner: intent `umfrage-anlegen`)\n- `umfragen.orga_vorname` (owner: intent `umfrage-anlegen`)\n- `umfragen.orga_nachname` (owner: intent `umfrage-anlegen`)\n- `umfragen.orga_mail` (owner: intent `umfrage-anlegen`)\n- `terminvorschlaege.umfrage` (owner: intent `umfrage-anlegen`)\n- `terminvorschlaege.start` (owner: intent `umfrage-anlegen`)\n- `teilnehmer.umfrage` (owner: intent `teilnehmer-einladen`)\n- `teilnehmer.vorname` (owner: intent `teilnehmer-einladen`)\n- `teilnehmer.nachname` (owner: intent `teilnehmer-einladen`)\n- `teilnehmer.mail` (owner: intent `teilnehmer-einladen`)\n- `teilnehmer.token` (owner: intent `teilnehmer-einladen`)\n- `teilnehmer.geantwortet_am` (owner: tool `antwortzeit-setzen`)\n"
+    }
+  ],
+  "public_pages": [
+    {
+      "slug": "abstimmen",
+      "purpose": "Teilnehmer antworten ohne Login mit Ja, Vielleicht oder Nein je Terminvorschlag. Die Seite zeigt nur die Terminvorschläge (Beginn) der Umfrage, keine Daten anderer Teilnehmer, und legt je Termin eine Antwort an. Der Teilnehmer wird über das persönliche Token zugeordnet. Nachträgliches Ändern einer Antwort und das Setzen von „Geantwortet am“ sind auf einer öffentlichen Seite nicht möglich.",
+      "publish": false,
+      "lists": [
+        {
+          "entity": "terminvorschlaege",
+          "columns": [
+            "start",
+            "umfrage"
+          ],
+          "filter": null,
+          "max_records": null
+        }
+      ],
+      "creates": [
+        {
+          "entity": "antworten",
+          "fields": {
+            "teilnehmer": "picked",
+            "terminvorschlag": "picked",
+            "wert": "user"
+          },
+          "fixed": {}
+        }
+      ],
+      "brief": "# Public page `abstimmen`\nTeilnehmer antworten ohne Login mit Ja, Vielleicht oder Nein je Terminvorschlag. Die Seite zeigt nur die Terminvorschläge (Beginn) der Umfrage, keine Daten anderer Teilnehmer, und legt je Termin eine Antwort an. Der Teilnehmer wird über das persönliche Token zugeordnet. Nachträgliches Ändern einer Antwort und das Setzen von „Geantwortet am“ sind auf einer öffentlichen Seite nicht möglich.\n\n## Lists (declare exactly these in the surface)\n- `terminvorschlaege`: columns `start`, `umfrage`\n\n## Creates (declare exactly these in the surface)\n- `antworten`: visitor fields `teilnehmer`, `terminvorschlag`, `wert`\n\n## Availability — mechanical, write nothing for it\nA picker (`useRecordSearch`) never offers a record another record already takes (a booked slot) — the layer leaves it out. To SHOW booked periods, call `useOccupancy(port, '<entity>')` and hand `blocked` to AvailabilityRangePicker; the integration gives the page exactly that read (dates or the reference, never who booked). Never declare a list of bookings with names or contacts to work availability out yourself.\n\nPublish: no (draft — the owner publishes)\n"
+    }
+  ],
+  "tools": [
+    {
+      "id": "frist-abgelaufen-hinweis",
+      "purpose": "Täglich eine Sammelmail an den Schlüsselinhaber: offene Umfragen, deren Antwortfrist vorbei ist, mit Titel und Frist. Es werden keine Datensätze geändert."
+    },
+    {
+      "id": "antwortzeit-setzen",
+      "purpose": "Wenn eine Antwort angelegt wird, setzt das Werkzeug beim zugehörigen Teilnehmer den Zeitpunkt Geantwortet am auf jetzt. Das Setzen geschieht nur, wenn das Feld noch leer ist, das prüft das Werkzeug im Code."
+    },
+    {
+      "id": "ergebnis-mail",
+      "purpose": "Wenn eine Umfrage auf abgeschlossen gesetzt ist und einen gewählten Termin hat, mailt das Werkzeug dem Schlüsselinhaber eine Zusammenfassung mit Titel und gewähltem Termin. Es prüft den Status im Code, weil jede Änderung auslöst. Mail an Teilnehmer ist nicht möglich."
+    },
+    {
+      "id": "einladungslinks-an-organisator-mailen",
+      "purpose": "Ein manuelles Werkzeug, das dem Schlüsselinhaber eine Sammelmail mit Teilnehmernamen und persönlichen Abstimmungslinks einer Umfrage sendet."
+    },
+    {
+      "id": "ergebnis-an-organisator-mailen",
+      "purpose": "Ein Werkzeug bei Änderung einer Umfrage, das bei Status abgeschlossen dem Schlüsselinhaber eine Mail mit gewähltem Termin sendet."
+    },
+    {
+      "id": "kalenderdatei-als-ics-ablegen",
+      "purpose": "Ein manuelles Werkzeug, das für den gewählten Termin einer Umfrage eine ICS-Datei erzeugt und als App-Datei ablegt."
+    }
+  ],
+  "covered_by_platform": [
+    {
+      "wish": "Umfragen, Teilnehmer und Terminvorschläge anlegen und bearbeiten",
+      "feature": "record_form"
+    },
+    {
+      "wish": "Übersicht und Suche über Umfragen und Teilnehmer",
+      "feature": "list_page"
+    },
+    {
+      "wish": "Antworten je Termin oder Teilnehmer zählen",
+      "feature": "distribution_view"
+    },
+    {
+      "wish": "Tabelle der Antworten als Datei",
+      "feature": "csv_json_export"
+    },
+    {
+      "wish": "Zugriff nur für Organisator, Teilnehmer und Antworten nicht öffentlich lesbar",
+      "feature": "user_roles"
+    }
+  ],
+  "ownership": {
+    "umfragen": {
+      "titel": "intent:umfrage-anlegen",
+      "beschreibung": "intent:umfrage-anlegen",
+      "ort": "intent:umfrage-anlegen",
+      "dauer_min": "intent:umfrage-anlegen",
+      "frist": "intent:umfrage-anlegen",
+      "orga_vorname": "intent:umfrage-anlegen",
+      "orga_nachname": "intent:umfrage-anlegen",
+      "orga_mail": "intent:umfrage-anlegen",
+      "status": "intent:umfrage-abschliessen",
+      "gewaehlter_termin": "intent:umfrage-abschliessen"
+    },
+    "terminvorschlaege": {
+      "umfrage": "intent:umfrage-anlegen",
+      "start": "intent:umfrage-anlegen"
+    },
+    "teilnehmer": {
+      "umfrage": "intent:teilnehmer-einladen",
+      "vorname": "intent:teilnehmer-einladen",
+      "nachname": "intent:teilnehmer-einladen",
+      "mail": "intent:teilnehmer-einladen",
+      "token": "intent:teilnehmer-einladen",
+      "geantwortet_am": "tool:antwortzeit-setzen"
+    }
+  },
+  "dashboard": {
+    "focus": [
+      "Offene Umfragen mit Antwortfrist",
+      "Anzahl Teilnehmer, die noch nicht geantwortet haben",
+      "Antworten je Terminvorschlag (Ja, Vielleicht, Nein)",
+      "Abgeschlossene Umfragen mit gewähltem Termin"
+    ],
+    "hints": [
+      "Umfragen mit abgelaufener Frist hervorheben",
+      "Teilnehmer ohne Antwortzeitpunkt als ausstehend zeigen"
+    ],
+    "writes": [],
+    "wishes": []
+  }
+}

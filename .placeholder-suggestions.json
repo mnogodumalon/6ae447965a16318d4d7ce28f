@@ -1,0 +1,30 @@
+{
+  "UmfragenDialog.tsx": {
+    "gewaehlter_termin": "Welcher Termin wurde gewählt?",
+    "orga_nachname": "z. B. Müller",
+    "orga_mail": "z. B. anna.mueller@firma.de",
+    "titel": "z. B. Teammeeting im Mai",
+    "beschreibung": "Worum geht es bei dem Termin?",
+    "ort": "z. B. Raum 3 oder Link",
+    "dauer_min": "z. B. 60",
+    "frist": "Bis wann sollen alle antworten?",
+    "orga_vorname": "z. B. Anna"
+  },
+  "TerminvorschlaegeDialog.tsx": {
+    "start": "Wann beginnt der Termin?",
+    "umfrage": "Welche Umfrage?"
+  },
+  "TeilnehmerDialog.tsx": {
+    "vorname": "z. B. Anna",
+    "nachname": "z. B. Müller",
+    "mail": "z. B. anna@beispiel.de",
+    "token": "z. B. a7f3k9",
+    "kommentar": "Anmerkungen zur Teilnahme",
+    "geantwortet_am": "Wann wurde geantwortet?",
+    "umfrage": "Welche Umfrage?"
+  },
+  "AntwortenDialog.tsx": {
+    "teilnehmer": "Welcher Teilnehmer?",
+    "terminvorschlag": "Welcher Terminvorschlag?"
+  }
+}

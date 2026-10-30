@@ -1,0 +1,402 @@
+# Terminabstimmung mit LivingApps – Bauanleitung
+
+Stand: 29.10.2026 · Rahmen: max. 30 Teilnehmer, Abstimmung ohne Login, nur Europe/Berlin, ICS-Datei per Mail
+
+## Wichtiger Hinweis vorab
+
+Ich kann Ihre LivingApps-Installation nicht testen. Die UL4-Templates unten sind nach den mir bekannten Konventionen geschrieben (`app.records`, `record.v_<feld>`, `params`, `<?code ?>`). Feldbezeichner, Zugriff auf andere Apps und Mail-Aktionen unterscheiden sich je nach Installation. Alles, was mit `ANPASSEN` markiert ist, müssen Sie gegen Ihre Feld-Identifier prüfen. Bauen Sie zuerst die Abstimmungsseite und testen Sie sie einzeln, bevor Sie weitermachen.
+
+---
+
+## 1. Apps und Felder
+
+### App `umfrage`
+
+| Identifier | Typ | Hinweis |
+|---|---|---|
+| `titel` | Text | Pflicht |
+| `beschreibung` | Mehrzeiliger Text | |
+| `ort` | Text | Ort oder Meeting-Link |
+| `dauer_min` | Zahl | Dauer in Minuten |
+| `frist` | Datum/Uhrzeit | Antwortfrist |
+| `orga_name` | Text | |
+| `orga_mail` | E-Mail | |
+| `status` | Auswahl | `offen`, `abgeschlossen`, `abgesagt` |
+| `gewaehlte_option` | Lookup auf `option` | wird bei Abschluss gesetzt |
+
+### App `option`
+
+| Identifier | Typ | Hinweis |
+|---|---|---|
+| `umfrage` | Lookup auf `umfrage` | Pflicht |
+| `start` | Datum/Uhrzeit | Pflicht |
+
+Das Ende wird im Template aus `start` plus `dauer_min` berechnet, dafür braucht es kein eigenes Feld.
+
+### App `teilnehmer`
+
+| Identifier | Typ | Hinweis |
+|---|---|---|
+| `umfrage` | Lookup auf `umfrage` | Pflicht |
+| `name` | Text | |
+| `mail` | E-Mail | |
+| `token` | Text | zufällig, mindestens 20 Zeichen, eindeutig |
+| `kommentar` | Mehrzeiliger Text | optional |
+| `geantwortet_am` | Datum/Uhrzeit | wird beim Absenden gesetzt |
+
+### App `antwort`
+
+Ein Datensatz pro Teilnehmer und Option. Bei 30 Teilnehmern und etwa 10 Optionen sind das rund 300 Datensätze, das ist unkritisch.
+
+| Identifier | Typ | Hinweis |
+|---|---|---|
+| `teilnehmer` | Lookup auf `teilnehmer` | Pflicht |
+| `option` | Lookup auf `option` | Pflicht |
+| `wert` | Auswahl | `ja`, `vielleicht`, `nein` |
+
+### Token erzeugen
+
+Das Token darf nicht erratbar sein. Wenn LivingApps in Ihrer Installation beim Anlegen kein Zufallstoken erzeugen kann, erzeugen Sie die Teilnehmer per Skript oder Import und füllen `token` mit einer UUID. Im Terminal zum Testen:
+
+```bash
+python3 -c "import uuid; print(uuid.uuid4().hex)"
+```
+
+---
+
+## 2. Ablauf
+
+1. Organisator legt `umfrage` und mehrere `option`-Datensätze an.
+2. Organisator legt die `teilnehmer` an (je Person ein Datensatz mit Token).
+3. Jeder Teilnehmer erhält per Mail den Link `https://<IHRE-LIVINGAPPS-URL>/gateway/apps/<APP-ID>/abstimmen?token=<TOKEN>` (ANPASSEN: tatsächliche URL-Form der View/Template-Ausgabe prüfen).
+4. Teilnehmer wählt je Option Ja, Vielleicht oder Nein und sendet ab.
+5. Organisator öffnet die Auswertung, wählt die beste Option und setzt `status = abgeschlossen`.
+6. Das System verschickt die ICS-Datei per Mail an alle Teilnehmer.
+
+---
+
+## 3. Template `abstimmen` (Teilnehmerseite, ohne Login)
+
+Zweck: Token aus der URL lesen, Teilnehmer laden, Optionen anzeigen, Antworten entgegennehmen.
+
+ANPASSEN: Wie ein Template auf `params` und auf Datensätze anderer Apps zugreift, hängt von Ihrer Installation ab. Der Aufbau ist so geschrieben, dass nur die mit `ANPASSEN` markierten Stellen geändert werden müssen.
+
+```html
+<?code token = params.get("token", "")?>
+<?code teilnehmer = None?>
+<?for t in datasources.teilnehmer.app.records.values()?>
+	<?if t.v_token == token and token?>
+		<?code teilnehmer = t?>
+	<?end if?>
+<?end for?>
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Terminabstimmung</title>
+	<style>
+		body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+		table { border-collapse: collapse; width: 100%; }
+		th, td { border-bottom: 1px solid #ddd; padding: .6rem .4rem; text-align: left; }
+		.hinweis { background: #fff4e5; padding: .8rem; border-radius: 6px; }
+		button { padding: .7rem 1.4rem; font-size: 1rem; }
+	</style>
+</head>
+<body>
+<?if teilnehmer is None?>
+	<p class="hinweis">Dieser Link ist ungültig. Bitte nutzen Sie den persönlichen Link aus Ihrer Einladung.</p>
+<?else?>
+	<?code umfrage = teilnehmer.v_umfrage?>
+	<h1><?print umfrage.v_titel?></h1>
+	<p><?print umfrage.v_beschreibung?></p>
+	<p>Ort: <?print umfrage.v_ort?> · Dauer: <?print umfrage.v_dauer_min?> Minuten</p>
+
+	<?if umfrage.v_status != "offen"?>
+		<p class="hinweis">Diese Abstimmung ist beendet.</p>
+	<?elif umfrage.v_frist and umfrage.v_frist &lt; now()?>
+		<p class="hinweis">Die Antwortfrist ist abgelaufen.</p>
+	<?else?>
+		<p>Hallo <?print teilnehmer.v_name?>, bitte wählen Sie für jeden Vorschlag Ihre Antwort.</p>
+
+		<?code
+		# ANPASSEN: Ziel-URL des Formulars für Antworten (Speichern erfolgt über die Formular-Ansicht der App "antwort")
+		?>
+		<form method="post" action="ANPASSEN-ZIEL-URL">
+			<input type="hidden" name="token" value="<?print teilnehmer.v_token?>">
+			<table>
+				<tr><th>Termin</th><th>Ja</th><th>Vielleicht</th><th>Nein</th></tr>
+				<?for o in datasources.option.app.records.values()?>
+					<?if o.v_umfrage.id == umfrage.id?>
+						<tr>
+							<td><?print o.v_start.format("%d.%m.%Y, %H:%M")?> Uhr</td>
+							<td><input type="radio" name="o_<?print o.id?>" value="ja"></td>
+							<td><input type="radio" name="o_<?print o.id?>" value="vielleicht"></td>
+							<td><input type="radio" name="o_<?print o.id?>" value="nein" checked></td>
+						</tr>
+					<?end if?>
+				<?end for?>
+			</table>
+			<p><label>Kommentar (optional)<br>
+				<textarea name="kommentar" rows="3" style="width:100%"></textarea></label></p>
+			<button type="submit">Antwort senden</button>
+		</form>
+	<?end if?>
+<?end if?>
+</body>
+</html>
+```
+
+### Wichtige Prüfpunkte
+
+- **Speichern der Antworten:** Ein reines Template kann in LivingApps in der Regel nichts speichern. Das Schreiben der `antwort`-Datensätze läuft über ein Formular der App oder über die LivingApps-REST-API. Prüfen Sie, welche der beiden Möglichkeiten in Ihrer Installation ohne Login nutzbar ist. Wenn nötig, schreibt ein kleiner Node/Express-Endpunkt die Antworten per API und prüft dabei das Token.
+- **Token-Prüfung beim Schreiben:** Die Prüfung nur beim Anzeigen reicht nicht. Auch beim Speichern muss geprüft werden, dass das Token zu genau diesem Teilnehmer gehört, sonst lassen sich fremde Antworten ändern.
+- **Mehrfaches Antworten:** Beim erneuten Absenden vorhandene `antwort`-Datensätze des Teilnehmers aktualisieren statt neue anlegen.
+- **Zugriffsrechte:** Die Apps `teilnehmer` und `antwort` dürfen nicht öffentlich lesbar sein. Wenn das Template ohne Login auf `datasources` zugreift, sieht jeder, der die Seite aufruft, nur das, was das Template ausgibt. Geben Sie deshalb im Template nie Daten anderer Teilnehmer aus.
+
+---
+
+## 4. Template `auswertung` (nur Organisator, mit Login)
+
+Zeigt eine Matrix Teilnehmer mal Optionen mit Summen.
+
+```html
+<?code umfrage_id = params.get("umfrage", "")?>
+<?code umfrage = None?>
+<?for u in datasources.umfrage.app.records.values()?>
+	<?if u.id == umfrage_id?><?code umfrage = u?><?end if?>
+<?end for?>
+
+<?code optionen = []?>
+<?for o in datasources.option.app.records.values()?>
+	<?if umfrage is not None and o.v_umfrage.id == umfrage.id?>
+		<?code optionen.append(o)?>
+	<?end if?>
+<?end for?>
+<?code optionen = sorted(optionen, key=lambda o: o.v_start)?>
+
+<?code teilnehmerliste = []?>
+<?for t in datasources.teilnehmer.app.records.values()?>
+	<?if umfrage is not None and t.v_umfrage.id == umfrage.id?>
+		<?code teilnehmerliste.append(t)?>
+	<?end if?>
+<?end for?>
+
+<?code wert = {}?>
+<?for a in datasources.antwort.app.records.values()?>
+	<?code wert[a.v_teilnehmer.id + "|" + a.v_option.id] = a.v_wert?>
+<?end for?>
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+	<meta charset="utf-8">
+	<title>Auswertung</title>
+	<style>
+		body { font-family: system-ui, sans-serif; margin: 1.5rem; }
+		table { border-collapse: collapse; }
+		th, td { border: 1px solid #ccc; padding: .4rem .7rem; text-align: center; }
+		.ja { background: #d9f2d9; } .vielleicht { background: #fff3c4; } .nein { background: #f6d6d6; }
+		.beste { outline: 3px solid #2a7; }
+	</style>
+</head>
+<body>
+<?if umfrage is None?>
+	<p>Umfrage nicht gefunden.</p>
+<?else?>
+	<h1>Auswertung: <?print umfrage.v_titel?></h1>
+	<?code summe_ja = {}?>
+	<?code summe_vl = {}?>
+	<?for o in optionen?>
+		<?code ja = 0?><?code vl = 0?>
+		<?for t in teilnehmerliste?>
+			<?code w = wert.get(t.id + "|" + o.id, "")?>
+			<?if w == "ja"?><?code ja += 1?><?elif w == "vielleicht"?><?code vl += 1?><?end if?>
+		<?end for?>
+		<?code summe_ja[o.id] = ja?>
+		<?code summe_vl[o.id] = vl?>
+	<?end for?>
+
+	<?code beste = None?>
+	<?for o in optionen?>
+		<?if beste is None or summe_ja[o.id] &gt; summe_ja[beste.id] or (summe_ja[o.id] == summe_ja[beste.id] and summe_vl[o.id] &gt; summe_vl[beste.id])?>
+			<?code beste = o?>
+		<?end if?>
+	<?end for?>
+
+	<table>
+		<tr>
+			<th>Teilnehmer</th>
+			<?for o in optionen?>
+				<th <?if beste is not None and o.id == beste.id?>class="beste"<?end if?>><?print o.v_start.format("%d.%m.%Y %H:%M")?></th>
+			<?end for?>
+		</tr>
+		<?for t in teilnehmerliste?>
+			<tr>
+				<td style="text-align:left"><?print t.v_name?></td>
+				<?for o in optionen?>
+					<?code w = wert.get(t.id + "|" + o.id, "")?>
+					<td class="<?print w?>"><?print w?></td>
+				<?end for?>
+			</tr>
+		<?end for?>
+		<tr>
+			<th>Ja</th>
+			<?for o in optionen?><th><?print summe_ja[o.id]?></th><?end for?>
+		</tr>
+		<tr>
+			<th>Vielleicht</th>
+			<?for o in optionen?><th><?print summe_vl[o.id]?></th><?end for?>
+		</tr>
+	</table>
+	<?if beste is not None?>
+		<p>Beste Option nach Ja-Stimmen (bei Gleichstand nach Vielleicht): <strong><?print beste.v_start.format("%d.%m.%Y, %H:%M")?> Uhr</strong></p>
+	<?end if?>
+<?end if?>
+</body>
+</html>
+```
+
+Hinweis: `&lt;` und `&gt;` in den Bedingungen sind HTML-Escapes für `<` und `>`. Falls Ihr Editor sie nicht umwandelt, schreiben Sie dort die normalen Zeichen `<` und `>`, sofern sie in einem `<?if ?>`-Tag stehen.
+
+---
+
+## 5. Template `termin.ics` (ICS-Datei)
+
+Wird für die gewählte Option erzeugt. Zeilenende muss CRLF sein. ANPASSEN: Prüfen Sie, ob Ihr Template-Typ den Content-Type `text/calendar` und den Dateinamen `termin.ics` setzen kann. Wenn nicht, erzeugt ein externer Endpunkt die Datei mit demselben Inhalt.
+
+Da nur Europe/Berlin gilt, nutze ich lokale Zeiten mit `TZID` und einem VTIMEZONE-Block. Das ist hier besser als UTC, weil Sommer- und Winterzeit automatisch stimmen und Sie nichts umrechnen müssen.
+
+```
+<?code umfrage_id = params.get("umfrage", "")?>
+<?code umfrage = None?>
+<?for u in datasources.umfrage.app.records.values()?><?if u.id == umfrage_id?><?code umfrage = u?><?end if?><?end for?>
+<?code o = umfrage.v_gewaehlte_option?>
+<?code ende = o.v_start + timedelta(minutes=umfrage.v_dauer_min)?>
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Terminabstimmung//DE
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VTIMEZONE
+TZID:Europe/Berlin
+BEGIN:STANDARD
+DTSTART:19701025T030000
+RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU
+TZOFFSETFROM:+0200
+TZOFFSETTO:+0100
+TZNAME:CET
+END:STANDARD
+BEGIN:DAYLIGHT
+DTSTART:19700329T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU
+TZOFFSETFROM:+0100
+TZOFFSETTO:+0200
+TZNAME:CEST
+END:DAYLIGHT
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:umfrage-<?print umfrage.id?>@IHREDOMAIN.de
+DTSTAMP:<?print now().format("%Y%m%dT%H%M%S")?>
+DTSTART;TZID=Europe/Berlin:<?print o.v_start.format("%Y%m%dT%H%M%S")?>
+DTEND;TZID=Europe/Berlin:<?print ende.format("%Y%m%dT%H%M%S")?>
+SUMMARY:<?print umfrage.v_titel.replace(",", "\\,").replace(";", "\\;")?>
+DESCRIPTION:<?print umfrage.v_beschreibung.replace("\n", "\\n").replace(",", "\\,").replace(";", "\\;")?>
+LOCATION:<?print umfrage.v_ort.replace(",", "\\,").replace(";", "\\;")?>
+ORGANIZER;CN=<?print umfrage.v_orga_name?>:mailto:<?print umfrage.v_orga_mail?>
+END:VEVENT
+END:VCALENDAR
+```
+
+Regeln, die Sie beachten müssen:
+
+- `UID` bleibt pro Umfrage immer gleich. Bei einer Terminänderung ändern Sie nur Zeit und erhöhen `SEQUENCE` (zusätzliche Zeile `SEQUENCE:1`) und setzen `METHOD:REQUEST` statt `PUBLISH`, damit der Termin im Kalender aktualisiert wird.
+- Zeilen über 75 Zeichen sollten nach RFC 5545 umbrochen werden (Folgezeile mit Leerzeichen beginnen). Outlook und Google tolerieren lange Zeilen meist. Wenn ein Import fehlschlägt, ist das einer der ersten Punkte zum Prüfen.
+- Datei mit UTF-8 speichern, damit Umlaute stimmen.
+- Prüfen Sie die erzeugte Datei im Terminal auf CRLF:
+
+```bash
+file termin.ics
+```
+
+Die Ausgabe sollte `with CRLF line terminators` enthalten.
+
+---
+
+## 6. Kalender-Links (zusätzlich zur ICS-Datei)
+
+Im Ergebnis-Template und in der Mail. Alle Werte URL-kodieren (in UL4: `urlquote(...)`, ANPASSEN: Funktionsname prüfen).
+
+**Google** (Zeitzone über `ctz`, deshalb ohne Umrechnung auf UTC):
+
+```
+https://calendar.google.com/calendar/render?action=TEMPLATE&text=<TITEL>&dates=<START>/<ENDE>&ctz=Europe/Berlin&details=<BESCHREIBUNG>&location=<ORT>
+```
+
+`<START>` und `<ENDE>` im Format `20261105T140000`.
+
+**Outlook im Web:**
+
+```
+https://outlook.office.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=<TITEL>&startdt=<START>&enddt=<ENDE>&body=<BESCHREIBUNG>&location=<ORT>
+```
+
+Für private Konten ersetzen Sie den Host durch `outlook.live.com`. Das Zeitformat von `startdt` und `enddt` ist ISO (`2026-11-05T14:00:00`). Ohne Zeitzonenangabe verwendet Outlook die Zeitzone des Nutzers. Das passt bei einer reinen Berlin-Gruppe, testen Sie es einmal mit einem Termin im Winter und einem im Sommer.
+
+---
+
+## 7. Mailversand mit ICS
+
+Zwei Mails sind nötig.
+
+### Einladungsmail (Start der Abstimmung)
+
+Inhalt:
+
+- Anrede mit `teilnehmer.v_name`
+- Titel und Beschreibung der Umfrage
+- persönlicher Link mit Token
+- Antwortfrist
+
+### Ergebnismail (nach Abschluss)
+
+Inhalt:
+
+- gewählter Termin mit Datum und Uhrzeit
+- Anhang: ICS-Datei
+- zusätzlich die beiden Kalender-Links als Text
+
+### Prüfpunkt Anhang
+
+Prüfen Sie, ob die Mail-Funktion Ihrer LivingApps-Installation einen dynamisch erzeugten Anhang unterstützt. Falls nicht, gibt es zwei Auswege:
+
+1. Die Mail enthält statt des Anhangs einen Link auf `termin.ics`. Mit Klick wird die Datei geöffnet oder heruntergeladen. Das funktioniert auf allen Geräten.
+2. Ein kleiner externer Dienst (Node/Express mit `nodemailer`) holt Daten per LivingApps-API, erzeugt die ICS-Datei und verschickt die Mail mit echtem Anhang (`Content-Type: text/calendar; method=PUBLISH`). Das ist aufwendiger, bietet aber auch Anzeige als Kalendereinladung direkt im Mailprogramm.
+
+Empfehlung: zuerst Variante 1 testen. Sie ist ohne zusätzlichen Server umsetzbar.
+
+---
+
+## 8. Reihenfolge zum Bauen
+
+1. Apps `umfrage`, `option`, `teilnehmer`, `antwort` mit den Feldern anlegen.
+2. Testdaten: 1 Umfrage, 3 Optionen, 3 Teilnehmer mit Token.
+3. Template `abstimmen` einbinden und mit gültigem und ungültigem Token testen.
+4. Speicherweg für Antworten klären und testen (Abschnitt 3, Prüfpunkte).
+5. Template `auswertung` bauen und Summen mit Testdaten nachrechnen.
+6. Template `termin.ics` bauen, Datei in Outlook, Google Calendar und auf dem Handy importieren.
+7. Mails (Einladung und Ergebnis) einrichten.
+8. Test mit der vollen Größe von 30 Teilnehmern und etwa 10 Optionen. Wenn Seiten langsam werden, ist die Schleife über alle `antwort`-Datensätze der Engpass. Dann filtern Sie die Datensätze vorab pro Umfrage.
+
+---
+
+## 9. Offene Punkte, die Sie klären müssen
+
+| Punkt | Warum |
+|---|---|
+| Wie speichert Ihre Installation Antworten ohne Login? | Davon hängt ab, ob ein externer Endpunkt nötig ist |
+| Kann das Template Content-Type und Dateinamen setzen? | Für `termin.ics` |
+| Unterstützt die Mail-Aktion Anhänge? | Siehe Abschnitt 7 |
+| Genaue Funktionsnamen in UL4 (`urlquote`, `timedelta`, `datasources`) | Je nach Version leicht unterschiedlich |
+| Datenschutz | Namen und Mailadressen werden gespeichert; Hinweis und Löschfrist für Umfragen vorsehen |
